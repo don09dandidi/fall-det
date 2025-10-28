@@ -1,0 +1,143 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 210 15% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 210 15% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 15% 15%;
+
+    --primary: 210 80% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 15% 92%;
+    --secondary-foreground: 210 15% 15%;
+
+    --muted: 210 15% 95%;
+    --muted-foreground: 210 10% 45%;
+
+    --accent: 210 70% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --emergency: 0 85% 55%;
+    --emergency-foreground: 0 0% 100%;
+    
+    --safe: 142 76% 45%;
+    --safe-foreground: 0 0% 100%;
+    
+    --contact: 210 80% 55%;
+    --contact-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 20% 88%;
+    --input: 210 20% 88%;
+    --ring: 210 80% 45%;
+
+    --radius: 1rem;
+    
+    --shadow-emergency: 0 85% 55%;
+    --shadow-safe: 142 76% 45%;
+    --shadow-contact: 210 80% 55%;
+  }
+
+  .dark {
+    --background: 210 20% 10%;
+    --foreground: 210 15% 95%;
+
+    --card: 210 20% 12%;
+    --card-foreground: 210 15% 95%;
+
+    --popover: 210 20% 12%;
+    --popover-foreground: 210 15% 95%;
+
+    --primary: 210 80% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 15% 20%;
+    --secondary-foreground: 210 15% 95%;
+
+    --muted: 210 15% 18%;
+    --muted-foreground: 210 10% 60%;
+
+    --accent: 210 70% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --emergency: 0 85% 60%;
+    --emergency-foreground: 0 0% 100%;
+    
+    --safe: 142 76% 50%;
+    --safe-foreground: 0 0% 100%;
+    
+    --contact: 210 80% 60%;
+    --contact-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 55%;
+    --warning-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 20% 20%;
+    --input: 210 20% 20%;
+    --ring: 210 80% 55%;
+    
+    --shadow-emergency: 0 85% 60%;
+    --shadow-safe: 142 76% 50%;
+    --shadow-contact: 210 80% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .animate-pulse-emergency {
+    animation: pulse-emergency 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  @keyframes pulse-emergency {
+    0%, 100% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 hsl(var(--shadow-emergency) / 0.7);
+    }
+    50% {
+      opacity: 0.8;
+      box-shadow: 0 0 0 20px hsl(var(--shadow-emergency) / 0);
+    }
+  }
+  
+  .animate-pulse-safe {
+    animation: pulse-safe 3s ease-in-out infinite;
+  }
+  
+  @keyframes pulse-safe {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+}
