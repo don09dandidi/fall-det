@@ -1,53 +1,60 @@
 import 'package:flutter/material.dart';
+import 'package:fall_det/widgets/sidebar.dart';
+import 'package:fall_det/screens/dashboard_screen.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const SafeGuardApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class SafeGuardApp extends StatelessWidget {
+  const SafeGuardApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Fall Detector',
+      title: 'SafeGuard',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
+        scaffoldBackgroundColor: const Color(0xFFF7F8FA),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: const HomeLayout(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+class HomeLayout extends StatefulWidget {
+  const HomeLayout({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeLayout> createState() => _HomeLayoutState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  int counter = 0;
-
-  void increment() => setState(() => counter++);
+class _HomeLayoutState extends State<HomeLayout> {
+  int selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
+    final screens = [
+      const DashboardScreen(),
+      const Center(child: Text("Alerte")),
+      const Center(child: Text("Contacte")),
+      const Center(child: Text("Check-in")),
+      const Center(child: Text("Setări")),
+    ];
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Flutter Counter Example')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Button pressed:'),
-            Text('$counter', style: Theme.of(context).textTheme.headlineMedium),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: increment,
-        child: const Icon(Icons.add),
+      body: Row(
+        children: [
+          SideBar(
+            selectedIndex: selectedIndex,
+            onItemSelected: (index) {
+              setState(() => selectedIndex = index);
+            },
+          ),
+          Expanded(child: screens[selectedIndex]),
+        ],
       ),
     );
   }
