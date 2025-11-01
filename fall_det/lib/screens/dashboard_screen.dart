@@ -24,7 +24,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _checkStatus();
-    // Refresh every 2 seconds
     statusTimer = Timer.periodic(
       const Duration(seconds: 2),
       (_) => _checkStatus(),
@@ -41,7 +40,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final res = await http.get(Uri.parse("$baseUrl/status"));
       final data = json.decode(res.body);
-
       setState(() {
         isMonitoring = data['status'] == "active";
         fallDetected = data['fall_detected'] ?? false;
@@ -90,8 +88,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              // Header - Centered
+              // Header (centered)
               Text(
                 "Monitorizare Activă",
                 style: GoogleFonts.poppins(
@@ -109,6 +108,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
+
               const SizedBox(height: 24),
 
               // Live Video Stream
@@ -205,7 +205,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
               const SizedBox(height: 20),
 
-              // Start/Stop Button - Full Width
+              // Start/Stop Button (full width)
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
