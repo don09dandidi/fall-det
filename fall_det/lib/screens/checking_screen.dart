@@ -21,7 +21,7 @@ class _CheckingScreenState extends State<CheckingScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Header
               Text(
@@ -31,7 +31,7 @@ class _CheckingScreenState extends State<CheckingScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 30),
               Text(
                 "Programați și urmăriți verificările de siguranță",
                 style: GoogleFonts.poppins(

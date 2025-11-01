@@ -41,7 +41,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Header
               Text(
@@ -51,7 +51,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 30),
               Text(
                 "Gestionați persoanele de contact pentru situații de urgență",
                 style: GoogleFonts.poppins(

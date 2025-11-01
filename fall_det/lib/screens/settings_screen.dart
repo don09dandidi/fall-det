@@ -25,7 +25,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Header
               Text(
@@ -35,7 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 30),
               Text(
                 "Personalizați setările sistemului de monitorizare",
                 style: GoogleFonts.poppins(
