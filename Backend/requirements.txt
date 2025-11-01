@@ -1,8 +1,18 @@
+# Core dependencies
+flask
+flask_sqlalchemy
+flask_cors
+werkzeug
+
+# Computer vision and AI
 opencv-python
 numpy
 ultralytics
-requests
+
+# PyTorch (YOLOv8 dependencies)
 torch
 torchvision
 torchaudio
-flask
+
+# Networking and requests
+requests
