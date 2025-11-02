@@ -14,4 +14,6 @@ Mobile application:
     Changed the main algorithm that detects fall. Removed everything that is about telegram. Used flask for linking with the front.
 
 Web:
-    
+    Designed a user-friendly UI for smooth navigation between app sections.
+    Developed a React + TypeScript web interface that includes dashboard, alerts, contacts, login, register, and settings pages.
+    Built a desktop version of the web app using Electron.js.
