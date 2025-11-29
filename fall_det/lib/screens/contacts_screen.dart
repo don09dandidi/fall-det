@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 class ContactsScreen extends StatefulWidget {
   final int userId; // Pass from login (user['id'])
@@ -70,6 +71,37 @@ class _ContactsScreenState extends State<ContactsScreen> {
   Future<void> _deleteContact(int id) async {
     final res = await http.delete(Uri.parse("$baseUrl/contacts/$id"));
     if (res.statusCode == 200) _fetchContacts();
+  }
+
+  // ------------------ CALL FUNCTION ------------------
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    // Remove any spaces or special characters except + and digits
+    final cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
+    final Uri phoneUri = Uri(scheme: 'tel', path: cleanNumber);
+    
+    try {
+      if (await canLaunchUrl(phoneUri)) {
+        await launchUrl(phoneUri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Nu se poate efectua apelul'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Eroare: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // ------------------ UI ------------------
@@ -188,14 +220,35 @@ class _ContactsScreenState extends State<ContactsScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Phone
+          // Phone with Call Button
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Icon(Icons.phone, color: Colors.black54, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                contact["phone"] ?? "",
-                style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
+              Row(
+                children: [
+                  const Icon(Icons.phone, color: Colors.black54, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    contact["phone"] ?? "",
+                    style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
+                  ),
+                ],
+              ),
+              ElevatedButton.icon(
+                onPressed: () => _makePhoneCall(contact["phone"] ?? ""),
+                icon: const Icon(Icons.call, size: 18),
+                label: Text(
+                  "Apelează",
+                  style: GoogleFonts.poppins(fontSize: 13),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
               ),
             ],
           ),
@@ -263,44 +316,44 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
     showDialog(
       context: context,
-      builder:
-          (_) => AlertDialog(
-            title: const Text("Adaugă Contact Nou"),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: "Nume"),
-                ),
-                TextField(
-                  controller: roleCtrl,
-                  decoration: const InputDecoration(labelText: "Rol"),
-                ),
-                TextField(
-                  controller: phoneCtrl,
-                  decoration: const InputDecoration(labelText: "Telefon"),
-                ),
-              ],
+      builder: (_) => AlertDialog(
+        title: const Text("Adaugă Contact Nou"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              decoration: const InputDecoration(labelText: "Nume"),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Anulează"),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  await _addContact(
-                    nameCtrl.text,
-                    roleCtrl.text,
-                    phoneCtrl.text,
-                  );
-                  Navigator.pop(context);
-                },
-                child: const Text("Adaugă"),
-              ),
-            ],
+            TextField(
+              controller: roleCtrl,
+              decoration: const InputDecoration(labelText: "Rol"),
+            ),
+            TextField(
+              controller: phoneCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: "Telefon"),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Anulează"),
           ),
+          ElevatedButton(
+            onPressed: () async {
+              await _addContact(
+                nameCtrl.text,
+                roleCtrl.text,
+                phoneCtrl.text,
+              );
+              Navigator.pop(context);
+            },
+            child: const Text("Adaugă"),
+          ),
+        ],
+      ),
     );
   }
 
@@ -311,72 +364,71 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
     showDialog(
       context: context,
-      builder:
-          (_) => AlertDialog(
-            title: const Text("Editează Contact"),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: "Nume"),
-                ),
-                TextField(
-                  controller: roleCtrl,
-                  decoration: const InputDecoration(labelText: "Rol"),
-                ),
-                TextField(
-                  controller: phoneCtrl,
-                  decoration: const InputDecoration(labelText: "Telefon"),
-                ),
-              ],
+      builder: (_) => AlertDialog(
+        title: const Text("Editează Contact"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              decoration: const InputDecoration(labelText: "Nume"),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Anulează"),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  await _updateContact(
-                    contact["id"],
-                    nameCtrl.text,
-                    roleCtrl.text,
-                    phoneCtrl.text,
-                  );
-                  Navigator.pop(context);
-                },
-                child: const Text("Salvează"),
-              ),
-            ],
+            TextField(
+              controller: roleCtrl,
+              decoration: const InputDecoration(labelText: "Rol"),
+            ),
+            TextField(
+              controller: phoneCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: "Telefon"),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Anulează"),
           ),
+          ElevatedButton(
+            onPressed: () async {
+              await _updateContact(
+                contact["id"],
+                nameCtrl.text,
+                roleCtrl.text,
+                phoneCtrl.text,
+              );
+              Navigator.pop(context);
+            },
+            child: const Text("Salvează"),
+          ),
+        ],
+      ),
     );
   }
 
   void _confirmDelete(Map<String, dynamic> contact) {
     showDialog(
       context: context,
-      builder:
-          (_) => AlertDialog(
-            title: const Text("Șterge contactul?"),
-            content: Text("Sigur doriți să ștergeți ${contact["name"]}?"),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Anulează"),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                ),
-                onPressed: () async {
-                  await _deleteContact(contact["id"]);
-                  Navigator.pop(context);
-                },
-                child: const Text("Șterge"),
-              ),
-            ],
+      builder: (_) => AlertDialog(
+        title: const Text("Șterge contactul?"),
+        content: Text("Sigur doriți să ștergeți ${contact["name"]}?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Anulează"),
           ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+            ),
+            onPressed: () async {
+              await _deleteContact(contact["id"]);
+              Navigator.pop(context);
+            },
+            child: const Text("Șterge"),
+          ),
+        ],
+      ),
     );
   }
 }

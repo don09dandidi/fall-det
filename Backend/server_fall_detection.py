@@ -1,11 +1,13 @@
 import cv2
 import threading
 import time
+from datetime import datetime
 from ultralytics import YOLO
 from flask import Flask, jsonify, Response, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
+import requests  # For sending push notifications
 
 # -------------------- FLASK APP CONFIG --------------------
 app = Flask(__name__)
@@ -30,9 +32,11 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(120), nullable=False)
+    fcm_token = db.Column(db.String(255))  # Firebase Cloud Messaging token
 
     contacts = db.relationship('Contact', backref='user', lazy=True)
     verifications = db.relationship('Verification', backref='user', lazy=True)
+    alerts = db.relationship('Alert', backref='user', lazy=True)
 
     def to_dict(self):
         return {"id": self.id, "username": self.username}
@@ -65,7 +69,7 @@ class Verification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     date = db.Column(db.String(30), nullable=False)
-    status = db.Column(db.String(20), default="scheduled")  # scheduled / completed
+    status = db.Column(db.String(20), default="scheduled")
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
     def to_dict(self):
@@ -76,6 +80,152 @@ class Verification(db.Model):
             "status": self.status,
             "user_id": self.user_id,
         }
+
+
+# -------------------- ALERT MODEL --------------------
+class Alert(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(255), nullable=False)
+    priority = db.Column(db.String(20), nullable=False)
+    status = db.Column(db.String(20), default="Activ")
+    category = db.Column(db.String(50), nullable=False)
+    time = db.Column(db.String(10), nullable=False)
+    date = db.Column(db.String(20), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "priority": self.priority,
+            "status": self.status,
+            "category": self.category,
+            "time": self.time,
+            "date": self.date,
+            "user_id": self.user_id,
+        }
+
+
+# ==========================================================
+#                   PUSH NOTIFICATION SYSTEM
+# ==========================================================
+def send_push_notification(user_id, title, body):
+    """
+    Send push notification to user's device using FCM
+    You need to set up Firebase Cloud Messaging in your Flutter app
+    """
+    with app.app_context():
+        user = User.query.get(user_id)
+        if user and user.fcm_token:
+            # FCM Server Key - get this from Firebase Console
+            FCM_SERVER_KEY = "YOUR_FCM_SERVER_KEY_HERE"
+            
+            headers = {
+                'Authorization': f'key={FCM_SERVER_KEY}',
+                'Content-Type': 'application/json',
+            }
+            
+            payload = {
+                'to': user.fcm_token,
+                'notification': {
+                    'title': title,
+                    'body': body,
+                    'sound': 'default',
+                    'priority': 'high',
+                },
+                'data': {
+                    'type': 'fall_detection',
+                    'timestamp': datetime.now().isoformat(),
+                }
+            }
+            
+            try:
+                response = requests.post(
+                    'https://fcm.googleapis.com/fcm/send',
+                    headers=headers,
+                    json=payload
+                )
+                print(f"Push notification sent: {response.status_code}")
+                return response.status_code == 200
+            except Exception as e:
+                print(f"Error sending push notification: {e}")
+                return False
+        return False
+
+
+# ==========================================================
+#                      ALERT ENDPOINTS
+# ==========================================================
+@app.route('/alerts', methods=['GET'])
+def get_alerts():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Missing user_id'}), 400
+
+    alerts = Alert.query.filter_by(user_id=user_id).order_by(Alert.created_at.desc()).all()
+    return jsonify([a.to_dict() for a in alerts]), 200
+
+
+@app.route('/alerts', methods=['POST'])
+def add_alert():
+    data = request.json
+    user_id = data.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Missing user_id'}), 400
+
+    now = datetime.now()
+    new_alert = Alert(
+        title=data.get('title'),
+        description=data.get('description'),
+        priority=data.get('priority', 'Mediu'),
+        status=data.get('status', 'Activ'),
+        category=data.get('category', 'Sistem'),
+        time=now.strftime('%H:%M'),
+        date=now.strftime('%d %b %Y'),
+        user_id=user_id
+    )
+    db.session.add(new_alert)
+    db.session.commit()
+    return jsonify({"message": "Alert added successfully", "alert": new_alert.to_dict()}), 201
+
+
+@app.route('/alerts/<int:id>', methods=['PUT'])
+def update_alert(id):
+    alert = Alert.query.get_or_404(id)
+    data = request.json
+    alert.status = data.get('status', alert.status)
+    db.session.commit()
+    return jsonify({"message": "Alert updated successfully"}), 200
+
+
+@app.route('/alerts/<int:id>', methods=['DELETE'])
+def delete_alert(id):
+    alert = Alert.query.get_or_404(id)
+    db.session.delete(alert)
+    db.session.commit()
+    return jsonify({"message": "Alert deleted successfully"}), 200
+
+
+@app.route('/alerts/stats', methods=['GET'])
+def get_alert_stats():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Missing user_id'}), 400
+
+    today = datetime.now().strftime('%d %b %Y')
+    
+    active_count = Alert.query.filter_by(user_id=user_id, status='Activ').count()
+    resolved_today = Alert.query.filter_by(user_id=user_id, status='Rezolvat', date=today).count()
+    total_count = Alert.query.filter_by(user_id=user_id).count()
+
+    return jsonify({
+        "active": active_count,
+        "resolved_today": resolved_today,
+        "total": total_count
+    }), 200
 
 
 # ==========================================================
@@ -213,6 +363,25 @@ def login():
         return jsonify({'error': 'Invalid username or password'}), 401
 
 
+@app.route('/update_fcm_token', methods=['POST'])
+def update_fcm_token():
+    """Update user's FCM token for push notifications"""
+    data = request.json
+    user_id = data.get('user_id')
+    fcm_token = data.get('fcm_token')
+    
+    if not user_id or not fcm_token:
+        return jsonify({'error': 'Missing user_id or fcm_token'}), 400
+    
+    user = User.query.get(user_id)
+    if user:
+        user.fcm_token = fcm_token
+        db.session.commit()
+        return jsonify({'message': 'FCM token updated successfully'}), 200
+    else:
+        return jsonify({'error': 'User not found'}), 404
+
+
 # ==========================================================
 #                    FALL DETECTOR SYSTEM
 # ==========================================================
@@ -225,13 +394,63 @@ class LocalFallDetector:
         self.fall_threshold = 0.5
         self.consecutive_fall_frames = 0
         self.fall_threshold_frames = 5
+        self.last_alert_time = None
+        self.alert_cooldown = 300  # 5 minutes cooldown between alerts
 
     def calculate_aspect_ratio(self, x1, y1, x2, y2):
         width = x2 - x1
         height = y2 - y1
         return height / width if width > 0 else 0
 
-    def detect_falls(self, video_source=0):
+    def create_fall_alert(self, user_id=1):
+        """Create a fall detection alert in the database and send push notification"""
+        current_time = time.time()
+        
+        # Check cooldown
+        if self.last_alert_time and (current_time - self.last_alert_time) < self.alert_cooldown:
+            return
+        
+        self.last_alert_time = current_time
+        now = datetime.now()
+        
+        with app.app_context():
+            # Create alert in database
+            new_alert = Alert(
+                title="Cădere Detectată!",
+                description="Sistem a detectat o posibilă cădere - necesită verificare imediată",
+                priority="Ridicat",
+                status="Activ",
+                category="Detectare Cădere",
+                time=now.strftime('%H:%M'),
+                date=now.strftime('%d %b %Y'),
+                user_id=user_id
+            )
+            db.session.add(new_alert)
+            db.session.commit()
+            print(f"🚨 Fall alert created at {now.strftime('%H:%M')}")
+            
+            # Send push notification
+            send_push_notification(
+                user_id=user_id,
+                title="⚠️ Cădere Detectată!",
+                body="Sistemul a detectat o posibilă cădere. Verificați imediat!"
+            )
+            
+            # Optional: Call emergency contacts
+            self.notify_emergency_contacts(user_id)
+
+    def notify_emergency_contacts(self, user_id):
+        """Send notifications to all active emergency contacts"""
+        with app.app_context():
+            contacts = Contact.query.filter_by(user_id=user_id, active=True).all()
+            user = User.query.get(user_id)
+            
+            for contact in contacts:
+                print(f"📞 Emergency contact notified: {contact.name} - {contact.phone}")
+                # Here you could integrate with SMS API (Twilio, etc.)
+                # Example: send_sms(contact.phone, f"ALERT: {user.username} may have fallen!")
+
+    def detect_falls(self, video_source=0, user_id=1):
         global is_running, current_frame
         cap = cv2.VideoCapture(video_source)
         if not cap.isOpened():
@@ -240,6 +459,7 @@ class LocalFallDetector:
 
         print("🟢 Fall detection started.")
         fall_detected = False
+        alert_created = False
 
         while is_running:
             ret, frame = cap.read()
@@ -271,10 +491,14 @@ class LocalFallDetector:
                 # Confirm fall if detected for multiple frames
                 if self.consecutive_fall_frames >= self.fall_threshold_frames:
                     fall_detected = True
+                    if not alert_created:
+                        self.create_fall_alert(user_id)
+                        alert_created = True
                     cv2.putText(frame, '🚨 FALL CONFIRMED!', (10, 30),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
                 else:
                     fall_detected = False
+                    alert_created = False
 
             # Display status
             status_text = "Monitoring..." if not fall_detected else "⚠️ Fall Detected!"
@@ -319,10 +543,11 @@ def video_feed():
 @app.route('/start', methods=['GET'])
 def start_detection():
     global is_running, detector_thread
+    user_id = request.args.get('user_id', 1)
     if is_running:
         return jsonify({"status": "already_running"})
     is_running = True
-    detector_thread = threading.Thread(target=detector.detect_falls, args=(0,))
+    detector_thread = threading.Thread(target=detector.detect_falls, args=(0, user_id))
     detector_thread.daemon = True
     detector_thread.start()
     return jsonify({"status": "started"})

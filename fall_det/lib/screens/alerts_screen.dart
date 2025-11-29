@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:async';
 
 class AlertsScreen extends StatefulWidget {
-  const AlertsScreen({super.key});
+  final int userId;
+  const AlertsScreen({super.key, required this.userId});
 
   @override
   State<AlertsScreen> createState() => _AlertsScreenState();
@@ -10,154 +14,271 @@ class AlertsScreen extends StatefulWidget {
 
 class _AlertsScreenState extends State<AlertsScreen> {
   String selectedTab = "Toate";
+  List<Map<String, dynamic>> alerts = [];
+  bool isLoading = true;
+  int activeCount = 0;
+  int resolvedTodayCount = 0;
+  int totalCount = 0;
+  Timer? _refreshTimer;
 
-  final List<Map<String, dynamic>> alerts = [
-    {
-      "title": "Update Sistem",
-      "description": "Sistem actualizat la versiunea 2.1.0",
-      "priority": "Scăzut",
-      "status": "Rezolvat",
-      "category": "Sistem",
-      "time": "13:32",
-      "date": "17 oct 2025",
-    },
-    {
-      "title": "Check-in Ratat",
-      "description": "Check-in ratat - 2 ore întârziere",
-      "priority": "Mediu",
-      "status": "Confirmat",
-      "category": "Dormitor Principal",
-      "time": "13:32",
-      "date": "17 oct 2025",
-    },
-  ];
+  final String baseUrl = "http://YOUR_IP:5000"; // Replace with your backend IP
+
+  @override
+  void initState() {
+    super.initState();
+    fetchAlerts();
+    fetchStats();
+    // Auto-refresh every 5 seconds
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      fetchAlerts();
+      fetchStats();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> fetchAlerts() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/alerts?user_id=${widget.userId}'),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          alerts = data.map((alert) => alert as Map<String, dynamic>).toList();
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error fetching alerts: $e');
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> fetchStats() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/alerts/stats?user_id=${widget.userId}'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          activeCount = data['active'];
+          resolvedTodayCount = data['resolved_today'];
+          totalCount = data['total'];
+        });
+      }
+    } catch (e) {
+      print('Error fetching stats: $e');
+    }
+  }
+
+  Future<void> confirmAlert(int alertId) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/alerts/$alertId'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'status': 'Confirmat'}),
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Alertă confirmată!')),
+        );
+        fetchAlerts();
+        fetchStats();
+      }
+    } catch (e) {
+      print('Error confirming alert: $e');
+    }
+  }
+
+  Future<void> resolveAlert(int alertId) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/alerts/$alertId'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'status': 'Rezolvat'}),
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Alertă rezolvată!')),
+        );
+        fetchAlerts();
+        fetchStats();
+      }
+    } catch (e) {
+      print('Error resolving alert: $e');
+    }
+  }
+
+  List<Map<String, dynamic>> getFilteredAlerts() {
+    if (selectedTab == "Toate") return alerts;
+    if (selectedTab == "Active") {
+      return alerts.where((a) => a['status'] == 'Activ').toList();
+    }
+    if (selectedTab == "Confirmate") {
+      return alerts.where((a) => a['status'] == 'Confirmat').toList();
+    }
+    if (selectedTab == "Rezolvate") {
+      return alerts.where((a) => a['status'] == 'Rezolvat').toList();
+    }
+    return alerts;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final filteredAlerts = getFilteredAlerts();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Header
-              Text(
-                "Istoric Alerte",
-                style: GoogleFonts.poppins(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 30),
-              Text(
-                "Monitorizați și gestionați toate alertele sistemului",
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  color: Colors.grey[600],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Summary Cards - Fixed Layout
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  // Calculate card width based on available space
-                  final availableWidth = constraints.maxWidth;
-                  final cardWidth =
-                      (availableWidth - 24) / 3; // 3 cards with spacing
-
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await fetchAlerts();
+            await fetchStats();
+          },
+          child: isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Expanded(
-                        child: _buildSummaryCard(
-                          "Alerte Active",
-                          "0",
-                          Colors.redAccent,
-                          Icons.warning_amber_rounded,
+                      // Header
+                      Text(
+                        "Istoric Alerte",
+                        style: GoogleFonts.poppins(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildSummaryCard(
-                          "Rezolvate Azi",
-                          "1",
-                          Colors.green,
-                          Icons.check_circle_outline,
+                      const SizedBox(height: 30),
+                      Text(
+                        "Monitorizați și gestionați toate alertele sistemului",
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          color: Colors.grey[600],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildSummaryCard(
-                          "Total Alerte",
-                          "2",
-                          Colors.blueAccent,
-                          Icons.analytics_outlined,
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
 
-              const SizedBox(height: 24),
+                      const SizedBox(height: 24),
 
-              // Tabs - Fixed positioning issue
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children:
-                      ["Toate", "Active", "Confirmate", "Rezolvate"]
-                          .map(
-                            (tab) => Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: FilterChip(
-                                label: Text(tab),
-                                selected: selectedTab == tab,
-                                onSelected:
-                                    (_) => setState(() => selectedTab = tab),
-                                selectedColor: Colors.blueAccent,
-                                backgroundColor: Colors.grey[200],
-                                checkmarkColor: Colors.white,
-                                labelStyle: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w500,
-                                  color:
-                                      selectedTab == tab
+                      // Summary Cards
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: _buildSummaryCard(
+                              "Alerte Active",
+                              "$activeCount",
+                              Colors.redAccent,
+                              Icons.warning_amber_rounded,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildSummaryCard(
+                              "Rezolvate Azi",
+                              "$resolvedTodayCount",
+                              Colors.green,
+                              Icons.check_circle_outline,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildSummaryCard(
+                              "Total Alerte",
+                              "$totalCount",
+                              Colors.blueAccent,
+                              Icons.analytics_outlined,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Tabs
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: ["Toate", "Active", "Confirmate", "Rezolvate"]
+                              .map(
+                                (tab) => Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: FilterChip(
+                                    label: Text(tab),
+                                    selected: selectedTab == tab,
+                                    onSelected: (_) =>
+                                        setState(() => selectedTab = tab),
+                                    selectedColor: Colors.blueAccent,
+                                    backgroundColor: Colors.grey[200],
+                                    checkmarkColor: Colors.white,
+                                    labelStyle: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w500,
+                                      color: selectedTab == tab
                                           ? Colors.white
                                           : Colors.black87,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                  ),
                                 ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
+                              )
+                              .toList(),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Alerts list
+                      if (filteredAlerts.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.all(40),
+                          child: Column(
+                            children: [
+                              Icon(Icons.check_circle_outline,
+                                  size: 64, color: Colors.grey[400]),
+                              const SizedBox(height: 16),
+                              Text(
+                                "Nu există alerte",
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  color: Colors.grey[600],
                                 ),
                               ),
-                            ),
-                          )
-                          .toList(),
+                            ],
+                          ),
+                        )
+                      else
+                        ...filteredAlerts
+                            .map((alert) => _buildAlertCard(alert))
+                            .toList(),
+
+                      const SizedBox(height: 16),
+                    ],
+                  ),
                 ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Alerts list
-              ...alerts.map((alert) => _buildAlertCard(alert)).toList(),
-
-              const SizedBox(height: 16),
-            ],
-          ),
         ),
       ),
     );
   }
 
-  // Summary Card Widget - Fixed overflow
+  // Summary Card Widget
   Widget _buildSummaryCard(
     String title,
     String value,
@@ -204,14 +325,21 @@ class _AlertsScreenState extends State<AlertsScreen> {
     );
   }
 
-  // Alert Card Widget
+  // Alert Card Widget with Confirmation Button
   Widget _buildAlertCard(Map<String, dynamic> alert) {
+    final String status = alert["status"];
+    final bool isActive = status == "Activ";
+    final bool isConfirmed = status == "Confirmat";
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: isActive
+            ? Border.all(color: Colors.redAccent, width: 2)
+            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.05),
@@ -229,12 +357,23 @@ class _AlertsScreenState extends State<AlertsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
-                  alert["title"],
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Row(
+                  children: [
+                    if (isActive)
+                      const Icon(Icons.warning_amber_rounded,
+                          color: Colors.redAccent, size: 20),
+                    if (isActive) const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        alert["title"],
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isActive ? Colors.redAccent : Colors.black,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
@@ -273,13 +412,13 @@ class _AlertsScreenState extends State<AlertsScreen> {
             children: [
               _buildTag(
                 alert["priority"],
-                Colors.blue.shade100,
-                Colors.blue.shade700,
+                _getPriorityColor(alert["priority"]).withOpacity(0.2),
+                _getPriorityColor(alert["priority"]),
               ),
               _buildTag(
                 alert["status"],
-                Colors.green.shade100,
-                Colors.green.shade700,
+                _getStatusColor(alert["status"]).withOpacity(0.2),
+                _getStatusColor(alert["status"]),
               ),
               _buildTag(
                 alert["category"],
@@ -288,6 +427,53 @@ class _AlertsScreenState extends State<AlertsScreen> {
               ),
             ],
           ),
+
+          // Action Buttons for Active/Confirmed alerts
+          if (isActive || isConfirmed) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (isActive)
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => confirmAlert(alert["id"]),
+                      icon: const Icon(Icons.check, size: 18),
+                      label: Text(
+                        "Confirmă",
+                        style: GoogleFonts.poppins(fontSize: 13),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (isActive) const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => resolveAlert(alert["id"]),
+                    icon: const Icon(Icons.check_circle, size: 18),
+                    label: Text(
+                      "Rezolvă",
+                      style: GoogleFonts.poppins(fontSize: 13),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -310,5 +496,31 @@ class _AlertsScreenState extends State<AlertsScreen> {
         ),
       ),
     );
+  }
+
+  Color _getPriorityColor(String priority) {
+    switch (priority) {
+      case "Ridicat":
+        return Colors.red;
+      case "Mediu":
+        return Colors.orange;
+      case "Scăzut":
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case "Activ":
+        return Colors.red;
+      case "Confirmat":
+        return Colors.orange;
+      case "Rezolvat":
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
   }
 }

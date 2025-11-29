@@ -26,7 +26,7 @@ class _HomeLayoutState extends State<HomeLayout> {
   Widget build(BuildContext context) {
     final screens = [
       const DashboardScreen(),
-      const AlertsScreen(),
+      AlertsScreen(userId: widget.userId),
       ContactsScreen(userId: widget.userId),
       CheckingScreen(userId: widget.userId),
       const SettingsScreen(),
