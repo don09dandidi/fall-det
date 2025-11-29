@@ -66,10 +66,9 @@ const Dashboard = () => {
       {/* Main Content */}
       <main className="container mx-auto p-6 space-y-6">
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Video Feed - 2 columns */}
-          <div className="lg:col-span-2 space-y-6">
-            <VideoFeed isConnected={true} />
-            
+          <div className="w-full h-[420px] rounded-xl overflow-hidden bg-muted">
+            <VideoFeed />
+          
             {/* Check-in Prompt */}
             {showCheckIn && (
               <CheckInPrompt
