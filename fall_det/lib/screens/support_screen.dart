@@ -50,7 +50,6 @@ class SupportScreen extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-
               const SizedBox(height: 30),
 
               // Emergency Contact Card
@@ -93,7 +92,7 @@ class SupportScreen extends StatelessWidget {
                       "Linia de urgență este disponibilă 24/7",
                       style: GoogleFonts.poppins(
                         fontSize: 13,
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white70,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -123,7 +122,6 @@ class SupportScreen extends StatelessWidget {
                   ],
                 ),
               ),
-
               const SizedBox(height: 24),
 
               // Support Options
@@ -135,9 +133,7 @@ class SupportScreen extends StatelessWidget {
                 onPressed: () => _makePhoneCall("+40123456789"),
                 color: Colors.blue,
               ),
-
               const SizedBox(height: 16),
-
               _buildSupportCard(
                 icon: Icons.email,
                 title: "Email Suport",
@@ -146,9 +142,7 @@ class SupportScreen extends StatelessWidget {
                 onPressed: () => _sendEmail("support@safeguard.ro"),
                 color: Colors.green,
               ),
-
               const SizedBox(height: 16),
-
               _buildSupportCard(
                 icon: Icons.help_outline,
                 title: "Întrebări Frecvente",
@@ -164,9 +158,7 @@ class SupportScreen extends StatelessWidget {
                 },
                 color: Colors.orange,
               ),
-
               const SizedBox(height: 16),
-
               _buildSupportCard(
                 icon: Icons.book,
                 title: "Ghid de Utilizare",
@@ -182,7 +174,6 @@ class SupportScreen extends StatelessWidget {
                 },
                 color: Colors.purple,
               ),
-
               const SizedBox(height: 30),
 
               // Info Section
@@ -211,7 +202,9 @@ class SupportScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "Luni - Vineri: 08:00 - 20:00\nSâmbătă - Duminică: 10:00 - 18:00\nUrgențe: 24/7",
+                      "Luni - Vineri: 08:00 - 20:00\n"
+                      "Sâmbătă - Duminică: 10:00 - 18:00\n"
+                      "Urgențe: 24/7",
                       style: GoogleFonts.poppins(
                         fontSize: 13,
                         color: Colors.blue.shade800,
@@ -317,7 +310,7 @@ class SupportScreen extends StatelessWidget {
   }
 }
 
-// FAQ Screen
+/// FAQ Screen
 class FAQScreen extends StatelessWidget {
   const FAQScreen({super.key});
 
@@ -326,23 +319,32 @@ class FAQScreen extends StatelessWidget {
     final faqs = [
       {
         'question': 'Cum funcționează detectarea căderilor?',
-        'answer': 'Sistemul folosește inteligență artificială pentru a monitoriza mișcările și a detecta pattern-uri asociate cu căderi. Când o cădere este detectată, o alertă este trimisă automat.'
+        'answer':
+            'Sistemul folosește inteligență artificială pentru a monitoriza mișcările '
+                'și a detecta pattern-uri asociate cu căderi. Când o cădere este detectată, '
+                'o alertă este trimisă automat.'
       },
       {
         'question': 'Cât de precisă este detectarea?',
-        'answer': 'Sistemul nostru are o precizie de peste 95% în detectarea căderilor, utilizând tehnologie YOLOv8 de ultimă generație.'
+        'answer':
+            'Sistemul nostru are o precizie de peste 95% în detectarea căderilor, '
+                'utilizând tehnologie YOLOv8 de ultimă generație.'
       },
       {
         'question': 'Cum adaug contacte de urgență?',
-        'answer': 'Mergi la secțiunea "Contacte" din meniu și apasă pe butonul "Adaugă Contact Nou". Completează informațiile necesare și contactul va fi notificat automat în caz de urgență.'
+        'answer':
+            'Mergi la secțiunea "Contacte" din meniu și apasă pe butonul "Adaugă Contact Nou". '
+                'Completează informațiile necesare și contactul va fi notificat automat în caz de urgență.'
       },
       {
         'question': 'Pot folosi aplicația fără internet?',
-        'answer': 'Monitorizarea video funcționează local, dar pentru notificări și sincronizare este necesară o conexiune internet.'
+        'answer':
+            'Monitorizarea video funcționează local, dar pentru notificări și sincronizare este necesară o conexiune internet.'
       },
       {
         'question': 'Ce fac dacă primesc o alertă falsă?',
-        'answer': 'Poți marca alerta ca "Rezolvată" din secțiunea Alerte. Sistemul învață continuu pentru a reduce alertele false.'
+        'answer':
+            'Poți marca alerta ca "Rezolvată" din secțiunea Alerte. Sistemul învață continuu pentru a reduce alertele false.'
       },
     ];
 
@@ -402,7 +404,7 @@ class FAQScreen extends StatelessWidget {
   }
 }
 
-// User Guide Screen
+/// User Guide Screen
 class UserGuideScreen extends StatelessWidget {
   const UserGuideScreen({super.key});
 
@@ -427,10 +429,10 @@ class UserGuideScreen extends StatelessWidget {
               icon: Icons.video_camera_front,
               title: "Pornirea Monitorizării",
               steps: [
-                "Accesați secțiunea 'Monitorizare' din meniu",
-                "Apăsați butonul 'Pornește Monitorizarea'",
-                "Camera va începe să monitorizeze automat",
-                "Primiți notificări instant în caz de cădere",
+                "Accesați secțiunea 'Monitorizare' din meniu.",
+                "Apăsați butonul 'Pornește Monitorizarea'.",
+                "Camera va începe să monitorizeze automat.",
+                "Primiți notificări instant în caz de cădere.",
               ],
             ),
             const SizedBox(height: 20),
@@ -438,10 +440,10 @@ class UserGuideScreen extends StatelessWidget {
               icon: Icons.contacts,
               title: "Gestionarea Contactelor",
               steps: [
-                "Mergi la 'Contacte' din meniu",
-                "Apasă '+' pentru a adăuga un contact nou",
-                "Completează numele, rolul și numărul de telefon",
-                "Contactele active primesc notificări automate",
+                "Mergi la 'Contacte' din meniu.",
+                "Apasă '+' pentru a adăuga un contact nou.",
+                "Completează numele, rolul și numărul de telefon.",
+                "Contactele active primesc notificări automate.",
               ],
             ),
             const SizedBox(height: 20),
@@ -449,10 +451,10 @@ class UserGuideScreen extends StatelessWidget {
               icon: Icons.notifications_active,
               title: "Răspuns la Alerte",
               steps: [
-                "Verifică alertele din secțiunea 'Alerte'",
-                "Apasă 'Confirmă' pentru a valida alerta",
-                "Apasă 'Rezolvă' când situația este sub control",
-                "Istoricul alertelor este salvat automat",
+                "Verifică alertele din secțiunea 'Alerte'.",
+                "Apasă 'Confirmă' pentru a valida alerta.",
+                "Apasă 'Rezolvă' când situația este sub control.",
+                "Istoricul alertelor este salvat automat.",
               ],
             ),
           ],

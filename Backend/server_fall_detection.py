@@ -122,12 +122,12 @@ def send_push_notification(user_id, title, body):
         if user and user.fcm_token:
             # FCM Server Key - get this from Firebase Console
             FCM_SERVER_KEY = "YOUR_FCM_SERVER_KEY_HERE"
-            
+
             headers = {
                 'Authorization': f'key={FCM_SERVER_KEY}',
                 'Content-Type': 'application/json',
             }
-            
+
             payload = {
                 'to': user.fcm_token,
                 'notification': {
@@ -141,7 +141,7 @@ def send_push_notification(user_id, title, body):
                     'timestamp': datetime.now().isoformat(),
                 }
             }
-            
+
             try:
                 response = requests.post(
                     'https://fcm.googleapis.com/fcm/send',
@@ -216,7 +216,7 @@ def get_alert_stats():
         return jsonify({'error': 'Missing user_id'}), 400
 
     today = datetime.now().strftime('%d %b %Y')
-    
+
     active_count = Alert.query.filter_by(user_id=user_id, status='Activ').count()
     resolved_today = Alert.query.filter_by(user_id=user_id, status='Rezolvat', date=today).count()
     total_count = Alert.query.filter_by(user_id=user_id).count()
@@ -352,15 +352,34 @@ def register():
 
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
+    try:
+        data = request.get_json(force=True, silent=False)
+        print("🔐 /login payload:", data)
 
-    user = User.query.filter_by(username=username).first()
-    if user and check_password_hash(user.password, password):
-        return jsonify({'message': 'Login successful', 'user': user.to_dict()}), 200
-    else:
-        return jsonify({'error': 'Invalid username or password'}), 401
+        if not data:
+            return jsonify({'error': 'Missing JSON body'}), 400
+
+        username = data.get('username')
+        password = data.get('password')
+
+        if not username or not password:
+            return jsonify({'error': 'Missing username or password'}), 400
+
+        user = User.query.filter_by(username=username).first()
+
+        if user and check_password_hash(user.password, password):
+            return jsonify({
+                'message': 'Login successful',
+                'user': user.to_dict()
+            }), 200
+        else:
+            return jsonify({'error': 'Invalid username or password'}), 401
+
+    except Exception as e:
+        import traceback
+        print("❌ /login internal error:", e)
+        traceback.print_exc()
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @app.route('/update_fcm_token', methods=['POST'])
@@ -369,10 +388,10 @@ def update_fcm_token():
     data = request.json
     user_id = data.get('user_id')
     fcm_token = data.get('fcm_token')
-    
+
     if not user_id or not fcm_token:
         return jsonify({'error': 'Missing user_id or fcm_token'}), 400
-    
+
     user = User.query.get(user_id)
     if user:
         user.fcm_token = fcm_token
@@ -397,6 +416,9 @@ class LocalFallDetector:
         self.last_alert_time = None
         self.alert_cooldown = 300  # 5 minutes cooldown between alerts
 
+        # Track current fall state for /status
+        self.fall_detected = False
+
     def calculate_aspect_ratio(self, x1, y1, x2, y2):
         width = x2 - x1
         height = y2 - y1
@@ -405,16 +427,15 @@ class LocalFallDetector:
     def create_fall_alert(self, user_id=1):
         """Create a fall detection alert in the database and send push notification"""
         current_time = time.time()
-        
+
         # Check cooldown
         if self.last_alert_time and (current_time - self.last_alert_time) < self.alert_cooldown:
             return
-        
+
         self.last_alert_time = current_time
         now = datetime.now()
-        
+
         with app.app_context():
-            # Create alert in database
             new_alert = Alert(
                 title="Cădere Detectată!",
                 description="Sistem a detectat o posibilă cădere - necesită verificare imediată",
@@ -428,15 +449,15 @@ class LocalFallDetector:
             db.session.add(new_alert)
             db.session.commit()
             print(f"🚨 Fall alert created at {now.strftime('%H:%M')}")
-            
-            # Send push notification
+
+            # Push notification
             send_push_notification(
                 user_id=user_id,
                 title="⚠️ Cădere Detectată!",
                 body="Sistemul a detectat o posibilă cădere. Verificați imediat!"
             )
-            
-            # Optional: Call emergency contacts
+
+            # Optional: notify emergency contacts
             self.notify_emergency_contacts(user_id)
 
     def notify_emergency_contacts(self, user_id):
@@ -444,30 +465,43 @@ class LocalFallDetector:
         with app.app_context():
             contacts = Contact.query.filter_by(user_id=user_id, active=True).all()
             user = User.query.get(user_id)
-            
+
             for contact in contacts:
                 print(f"📞 Emergency contact notified: {contact.name} - {contact.phone}")
-                # Here you could integrate with SMS API (Twilio, etc.)
-                # Example: send_sms(contact.phone, f"ALERT: {user.username} may have fallen!")
+                # integrate SMS API here if needed
 
     def detect_falls(self, video_source=0, user_id=1):
+        """Main fall-detection loop running in a background thread"""
         global is_running, current_frame
+
+        # Try to open camera with different backends/indexes
         cap = cv2.VideoCapture(video_source)
         if not cap.isOpened():
-            print("Error: Could not open video source")
+            print("MSMF backend failed, trying DirectShow on index 0...")
+            cap.release()
+            cap = cv2.VideoCapture(video_source, cv2.CAP_DSHOW)
+
+        if not cap.isOpened():
+            print("DirectShow index 0 failed, trying DirectShow index 1...")
+            cap.release()
+            cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+
+        if not cap.isOpened():
+            print("❌ Error: Could not open any video source (0 or 1).")
+            is_running = False
             return
 
         print("🟢 Fall detection started.")
-        fall_detected = False
         alert_created = False
 
         while is_running:
             ret, frame = cap.read()
             if not ret:
+                print("⚠️ Could not read frame from camera.")
                 break
 
             results = self.model(frame, classes=[0], verbose=False)[0]
-            current_frame_fall = False
+            self.fall_detected = False  # reset for this frame
 
             if results.boxes is not None:
                 for box in results.boxes:
@@ -475,46 +509,77 @@ class LocalFallDetector:
                     confidence = box.conf[0].item()
                     aspect_ratio = self.calculate_aspect_ratio(x1, y1, x2, y2)
 
-                    # Check for fall posture
                     if aspect_ratio < self.fall_threshold and confidence > 0.5:
-                        current_frame_fall = True
                         self.consecutive_fall_frames += 1
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 3)
-                        cv2.putText(frame, 'FALL DETECTED!', (x1, y1 - 10),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                        cv2.putText(
+                            frame,
+                            'FALL DETECTED!',
+                            (x1, y1 - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.7,
+                            (0, 0, 255),
+                            2,
+                        )
                     else:
-                        self.consecutive_fall_frames = max(0, self.consecutive_fall_frames - 1)
+                        self.consecutive_fall_frames = max(
+                            0, self.consecutive_fall_frames - 1
+                        )
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                        cv2.putText(frame, f'Ratio: {aspect_ratio:.2f}', (x1, y2 + 20),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                        cv2.putText(
+                            frame,
+                            f'Ratio: {aspect_ratio:.2f}',
+                            (x1, y2 + 20),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.5,
+                            (255, 255, 255),
+                            1,
+                        )
 
                 # Confirm fall if detected for multiple frames
                 if self.consecutive_fall_frames >= self.fall_threshold_frames:
-                    fall_detected = True
+                    self.fall_detected = True
                     if not alert_created:
                         self.create_fall_alert(user_id)
                         alert_created = True
-                    cv2.putText(frame, '🚨 FALL CONFIRMED!', (10, 30),
-                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
+                    cv2.putText(
+                        frame,
+                        '🚨 FALL CONFIRMED!',
+                        (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1,
+                        (0, 0, 255),
+                        3,
+                    )
                 else:
-                    fall_detected = False
+                    self.fall_detected = False
                     alert_created = False
 
-            # Display status
-            status_text = "Monitoring..." if not fall_detected else "⚠️ Fall Detected!"
-            color = (0, 255, 0) if not fall_detected else (0, 0, 255)
-            cv2.putText(frame, status_text, (10, 60),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+            # Status overlay
+            status_text = "Monitoring..." if self.fall_detected else "No fall"
+            color = (0, 0, 255) if self.fall_detected else (0, 255, 0)
+            cv2.putText(
+                frame,
+                status_text,
+                (10, 60),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.9,
+                color,
+                2,
+            )
 
             # Update current frame for streaming
             current_frame = frame
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+
             time.sleep(0.03)
 
         cap.release()
         cv2.destroyAllWindows()
+        is_running = False
+        self.fall_detected = False
         print("🔴 Detection stopped.")
 
 
@@ -528,26 +593,35 @@ detector = LocalFallDetector()
 def video_feed():
     """Provide live video stream to Flutter via MJPEG"""
     def generate():
-        global current_frame
+        global current_frame, is_running
         while is_running:
             if current_frame is not None:
                 _, buffer = cv2.imencode('.jpg', current_frame)
                 frame_bytes = buffer.tobytes()
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+                yield (
+                    b'--frame\r\n'
+                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n'
+                )
             time.sleep(0.05)
-    return Response(generate(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+    return Response(
+        generate(),
+        mimetype='multipart/x-mixed-replace; boundary=frame',
+    )
 
 
 @app.route('/start', methods=['GET'])
 def start_detection():
     global is_running, detector_thread
-    user_id = request.args.get('user_id', 1)
+    user_id = int(request.args.get('user_id', 1))
+
     if is_running:
         return jsonify({"status": "already_running"})
+
     is_running = True
-    detector_thread = threading.Thread(target=detector.detect_falls, args=(0, user_id))
+    detector_thread = threading.Thread(
+        target=detector.detect_falls, args=(0, user_id)
+    )
     detector_thread.daemon = True
     detector_thread.start()
     return jsonify({"status": "started"})
@@ -565,7 +639,10 @@ def stop_detection():
 @app.route('/status', methods=['GET'])
 def get_status():
     global is_running
-    return jsonify({"status": "active" if is_running else "inactive"})
+    return jsonify({
+        "status": "active" if is_running else "inactive",
+        "fall_detected": detector.fall_detected if is_running else False
+    })
 
 
 # ==========================================================

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -49,8 +50,7 @@ class _SideBarState extends State<SideBar> {
       setState(() {
         isCameraActive = data['status'] == "active";
       });
-    } catch (e) {
-      // Connection failed - camera is inactive
+    } catch (_) {
       setState(() {
         isCameraActive = false;
       });
@@ -62,7 +62,6 @@ class _SideBarState extends State<SideBar> {
       setState(() => isCollapsed = false);
     } else {
       setState(() => isCollapsed = true);
-      // Close completely after animation
       Future.delayed(const Duration(milliseconds: 300), () {
         widget.onClose();
       });
@@ -154,24 +153,23 @@ class _SideBarState extends State<SideBar> {
 
                         return InkWell(
                           onTap: () => widget.onItemSelected(index),
-                          hoverColor: Colors.blue.shade50.withOpacity(0.3),
+                          hoverColor:
+                              Colors.blue.shade50.withOpacity(0.3),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               vertical: 14,
                               horizontal: 18,
                             ),
-                            color:
-                                isActive
-                                    ? Colors.blue.shade50
-                                    : Colors.transparent,
+                            color: isActive
+                                ? Colors.blue.shade50
+                                : Colors.transparent,
                             child: Row(
                               children: [
                                 Icon(
                                   item['icon'],
-                                  color:
-                                      isActive
-                                          ? Colors.blueAccent
-                                          : Colors.grey.shade600,
+                                  color: isActive
+                                      ? Colors.blueAccent
+                                      : Colors.grey.shade600,
                                 ),
                                 if (!isCollapsed) ...[
                                   const SizedBox(width: 12),
@@ -179,14 +177,12 @@ class _SideBarState extends State<SideBar> {
                                     child: Text(
                                       item['title'],
                                       style: GoogleFonts.poppins(
-                                        color:
-                                            isActive
-                                                ? Colors.blueAccent
-                                                : Colors.grey.shade800,
-                                        fontWeight:
-                                            isActive
-                                                ? FontWeight.w600
-                                                : FontWeight.normal,
+                                        color: isActive
+                                            ? Colors.blueAccent
+                                            : Colors.grey.shade800,
+                                        fontWeight: isActive
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
                                       ),
                                     ),
                                   ),
@@ -232,7 +228,9 @@ class _SideBarState extends State<SideBar> {
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
-                                isCameraActive ? "Cameră Activă" : "Cameră Inactivă",
+                                isCameraActive
+                                    ? "Cameră Activă"
+                                    : "Cameră Inactivă",
                                 style: GoogleFonts.poppins(
                                   fontSize: 12,
                                   color: Colors.black87,
@@ -247,7 +245,8 @@ class _SideBarState extends State<SideBar> {
                         children: [
                           Icon(
                             Icons.security,
-                            color: isCameraActive ? Colors.blue : Colors.grey,
+                            color:
+                                isCameraActive ? Colors.blue : Colors.grey,
                             size: 16,
                           ),
                           if (!isCollapsed) ...[

@@ -10,21 +10,45 @@ class NotificationService {
 
   static Future<void> initialize(int userId, String baseUrl) async {
     // Request permission for iOS
-    await _firebaseMessaging.requestPermission(
+    NotificationSettings settings = await _firebaseMessaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
       provisional: false,
     );
 
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      print('User granted notification permission');
+    } else if (settings.authorizationStatus == AuthorizationStatus.provisional) {
+      print('User granted provisional notification permission');
+    } else {
+      print('User declined notification permission');
+      return;
+    }
+
     // Initialize local notifications
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings();
-    const initSettings = InitializationSettings(
+    const AndroidInitializationSettings androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    
+    const DarwinInitializationSettings iosSettings =
+        DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
+    const InitializationSettings initSettings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
     );
-    await _localNotifications.initialize(initSettings);
+
+    await _localNotifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        print('Notification tapped: ${response.payload}');
+        // Handle notification tap
+      },
+    );
 
     // Get FCM token
     String? token = await _firebaseMessaging.getToken();
@@ -36,18 +60,20 @@ class NotificationService {
 
     // Listen for token refresh
     _firebaseMessaging.onTokenRefresh.listen((newToken) {
+      print("FCM Token refreshed: $newToken");
       _sendTokenToBackend(userId, newToken, baseUrl);
     });
 
     // Handle foreground notifications
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('Foreground message: ${message.notification?.title}');
+      print('Foreground message received: ${message.notification?.title}');
       _showLocalNotification(message);
     });
 
-    // Handle background notifications
+    // Handle notification when app is opened from background
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('Notification opened: ${message.notification?.title}');
+      print('Notification opened app: ${message.notification?.title}');
+      // Navigate to specific screen if needed
     });
   }
 
@@ -57,7 +83,7 @@ class NotificationService {
     String baseUrl,
   ) async {
     try {
-      await http.post(
+      final response = await http.post(
         Uri.parse('$baseUrl/update_fcm_token'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
@@ -65,29 +91,35 @@ class NotificationService {
           'fcm_token': token,
         }),
       );
-      print('FCM token sent to backend');
+      
+      if (response.statusCode == 200) {
+        print('FCM token sent to backend successfully');
+      } else {
+        print('Failed to send FCM token: ${response.statusCode}');
+      }
     } catch (e) {
-      print('Error sending FCM token: $e');
+      print('Error sending FCM token to backend: $e');
     }
   }
 
   static Future<void> _showLocalNotification(RemoteMessage message) async {
-    const androidDetails = AndroidNotificationDetails(
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'fall_detection_channel',
       'Fall Detection Alerts',
       channelDescription: 'Notifications for fall detection alerts',
       importance: Importance.max,
       priority: Priority.high,
       showWhen: true,
+      icon: '@mipmap/ic_launcher',
     );
 
-    const iosDetails = DarwinNotificationDetails(
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
     );
 
-    const details = NotificationDetails(
+    const NotificationDetails details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
@@ -96,6 +128,29 @@ class NotificationService {
       DateTime.now().millisecond,
       message.notification?.title ?? 'Fall Detected',
       message.notification?.body ?? 'Please check immediately',
+      details,
+      payload: message.data.toString(),
+    );
+  }
+
+  // Optional: Send test notification
+  static Future<void> sendTestNotification() async {
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'test_channel',
+      'Test Notifications',
+      channelDescription: 'Test notification channel',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+
+    const NotificationDetails details = NotificationDetails(
+      android: androidDetails,
+    );
+
+    await _localNotifications.show(
+      0,
+      'Test Notification',
+      'If you see this, notifications are working!',
       details,
     );
   }
