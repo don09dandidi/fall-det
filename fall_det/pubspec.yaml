@@ -1,31 +1,31 @@
 name: fall_det
 description: "A new Flutter project."
-
-publish_to: 'none' 
-
-
+publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.7.2
+  sdk: ^3.5.4
 
 dependencies:
   flutter:
     sdk: flutter
-  google_fonts: ^6.2.1
-  provider: ^6.1.2
-  flutter_svg: ^2.0.10
-  http: ^1.2.2
+  cupertino_icons: ^1.0.8
+  http: ^1.1.0
+  google_fonts: ^6.1.0
   flutter_inappwebview: ^6.0.0
-
-
+  url_launcher: ^6.2.2
+  
+  # Firebase dependencies
+  firebase_core: ^2.24.2
+  firebase_messaging: ^14.7.9
+  
+  # Use older version that's compatible with SDK 35
+  flutter_local_notifications: ^17.2.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-  flutter_lints: ^5.0.0
+  flutter_lints: ^4.0.0
 
 flutter:
-
   uses-material-design: true

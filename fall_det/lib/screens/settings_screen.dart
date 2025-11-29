@@ -18,6 +18,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   TimeOfDay quietEnd = const TimeOfDay(hour: 7, minute: 0);
 
   @override
+  void dispose() {
+    _cameraUrlController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
@@ -45,17 +51,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-
               const SizedBox(height: 24),
 
               // Camera Configuration Card
               _buildCameraCard(),
-
               const SizedBox(height: 20),
 
               // Alerts Configuration Card
               _buildAlertCard(),
-
               const SizedBox(height: 24),
             ],
           ),

@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+
+// Adjust package name if yours is different
 import 'package:fall_det/widgets/home_layout.dart';
 import 'package:fall_det/screens/register_screen.dart';
 
@@ -15,10 +17,19 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+
   bool isLoading = false;
   bool obscurePassword = true;
 
-  final String baseUrl = "http://192.168.0.7:5000"; // Flask backend
+  // Your Flask backend
+  final String baseUrl = "http://192.168.0.7:5000";
+
+  @override
+  void dispose() {
+    usernameController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _login() async {
     if (usernameController.text.trim().isEmpty ||
@@ -35,8 +46,10 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => isLoading = true);
 
     try {
+      final uri = Uri.parse("$baseUrl/login");
+
       final res = await http.post(
-        Uri.parse("$baseUrl/login"),
+        uri,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "username": usernameController.text.trim(),
@@ -44,28 +57,54 @@ class _LoginScreenState extends State<LoginScreen> {
         }),
       );
 
-      final data = jsonDecode(res.body);
+      print("🔐 Login status: ${res.statusCode}");
+      print("🔐 Login body: ${res.body}");
+
+      Map<String, dynamic>? data;
+      try {
+        data = jsonDecode(res.body);
+      } catch (e) {
+        data = null; // Not JSON (e.g. HTML error page)
+      }
+
       setState(() => isLoading = false);
 
-      if (res.statusCode == 200) {
-        // ✅ Extract user ID from response
+      if (res.statusCode == 200 && data != null && data['user'] != null) {
+        // Successful login
         final user = data['user'];
-        final userId = user['id'];
+        final int userId = user['id'];
 
-        // Navigate to HomeLayout and pass userId
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => HomeLayout(userId: userId)),
+          MaterialPageRoute(
+            builder: (context) => HomeLayout(userId: userId),
+          ),
         );
-      } else {
+      } else if (res.statusCode == 401 && data != null) {
+        // Invalid credentials
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(data['error'] ?? 'Eroare la autentificare'),
+            content: Text(
+              data['error'] ?? 'Nume utilizator sau parolă greșită',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        // Other server-side error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Eroare server (${res.statusCode}): '
+              '${data != null ? (data['error'] ?? res.body) : res.body}',
+            ),
             backgroundColor: Colors.red,
           ),
         );
       }
     } catch (e) {
+      // Real connection error (no response or network issue)
+      print("❌ Login exception: $e");
       setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -102,6 +141,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
+
+                // Title
                 Text(
                   "SafeGuard",
                   style: GoogleFonts.poppins(
@@ -174,24 +215,23 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       elevation: 2,
                     ),
-                    child:
-                        isLoading
-                            ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                            : Text(
-                              "Conectează-te",
-                              style: GoogleFonts.poppins(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                              ),
+                    child: isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
                             ),
+                          )
+                        : Text(
+                            "Conectează-te",
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 16),

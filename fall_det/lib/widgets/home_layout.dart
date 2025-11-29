@@ -4,6 +4,7 @@ import 'package:fall_det/screens/dashboard_screen.dart';
 import 'package:fall_det/screens/alerts_screen.dart';
 import 'package:fall_det/screens/contacts_screen.dart';
 import 'package:fall_det/screens/checking_screen.dart';
+import 'package:fall_det/screens/support_screen.dart';
 import 'package:fall_det/screens/settings_screen.dart';
 
 class HomeLayout extends StatefulWidget {
@@ -24,12 +25,14 @@ class _HomeLayoutState extends State<HomeLayout> {
 
   @override
   Widget build(BuildContext context) {
-    final screens = [
-      const DashboardScreen(),
-      const AlertsScreen(),
-      ContactsScreen(userId: widget.userId),
-      CheckingScreen(userId: widget.userId),
-      const SettingsScreen(),
+    // IMPORTANT: 6 screens, same order as SideBar
+    final List<Widget> screens = [
+      const DashboardScreen(),              // 0 - Monitorizare
+      AlertsScreen(userId: widget.userId),  // 1 - Alerte
+      ContactsScreen(userId: widget.userId),// 2 - Contacte
+      CheckingScreen(userId: widget.userId),// 3 - Check-in
+      const SupportScreen(),                // 4 - Suport
+      const SettingsScreen(),               // 5 - Setări
     ];
 
     return Scaffold(
@@ -38,7 +41,7 @@ class _HomeLayoutState extends State<HomeLayout> {
           // Main content
           screens[selectedIndex],
 
-          // Overlay when sidebar open
+          // Dark overlay when sidebar open
           if (isSidebarOpen)
             GestureDetector(
               onTap: closeSidebar,
@@ -55,6 +58,8 @@ class _HomeLayoutState extends State<HomeLayout> {
                 selectedIndex: selectedIndex,
                 onItemSelected: (index) {
                   setState(() => selectedIndex = index);
+                  // optionally also close sidebar when item tapped:
+                  // closeSidebar();
                 },
                 onClose: closeSidebar,
               ),
