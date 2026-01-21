@@ -1,36 +1,42 @@
 import { Card } from "@/components/ui/card";
 import { VideoOff } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const BASE_URL = "http://127.0.0.1:5001";
 
 interface VideoFeedProps {
   isConnected?: boolean;
+  streamKey?: number;
 }
 
-const VideoFeed = ({ isConnected = true }: VideoFeedProps) => {
+const VideoFeed = ({ isConnected = true, streamKey = 0 }: VideoFeedProps) => {
   const [hasError, setHasError] = useState(false);
 
-  return (
-    <Card className="relative aspect-video w-full overflow-hidden bg-muted">
+  // ✅ când se schimbă streamKey (la revenire în Dashboard), resetăm erorile
+  useEffect(() => {
+    setHasError(false);
+  }, [streamKey]);
 
-      {/* ⭐ AICI ESTE SCHIMBAREA: afișăm fluxul MJPEG real */}
+  // ✅ cache-bust + remount complet
+  const streamUrl = `${BASE_URL}/video_feed?t=${streamKey}`;
+
+  return (
+    <Card className="relative aspect-video w-full h-full overflow-hidden bg-muted">
       {isConnected && !hasError ? (
         <div className="relative h-full w-full">
-
-          {/* ⭐ LIVE STREAM REAL de la Flask */}
           <img
-            src="http://localhost:5000/video_feed"
+            key={streamKey}
+            src={streamUrl}
             alt="live stream"
             className="absolute inset-0 h-full w-full object-cover"
             onError={() => setHasError(true)}
           />
 
-          {/* ⭐ Indicator LIVE */}
           <div className="absolute top-4 left-4 flex items-center gap-2 rounded-full bg-emergency px-3 py-1.5">
             <div className="h-2 w-2 rounded-full bg-emergency-foreground animate-pulse-safe" />
             <span className="text-sm font-semibold text-emergency-foreground">LIVE</span>
           </div>
 
-          {/* ⭐ Timestamp */}
           <div className="absolute top-4 right-4 rounded-lg bg-background/80 backdrop-blur-sm px-3 py-1.5">
             <span className="text-sm font-medium text-foreground">
               {new Date().toLocaleTimeString("ro-RO")}
